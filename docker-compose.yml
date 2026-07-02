@@ -1,0 +1,37 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: kasiefm-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: kasiefm
+      POSTGRES_USER: kasiefm
+      POSTGRES_PASSWORD: kasiefm
+    ports:
+      - "5432:5432"
+    volumes:
+      - kasiefm_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kasiefm"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    container_name: kasiefm-api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: kasiefm
+      DB_USER: kasiefm
+      DB_PASSWORD: kasiefm
+    ports:
+      - "8080:8080"
+
+volumes:
+  kasiefm_pgdata:
