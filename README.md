@@ -10,12 +10,10 @@ sleeps after inactivity, ~30–60s cold start on first request after idle).
 main.
 
 > **Status note:** this is a student prototype inspired by the real Kasie FM
-> 97.1 community station. It is **not** the station's official backend, and
-> the station has not been contacted yet. Seed data is placeholder except
-> for one verified detail (`#HomeDrive`, 15:00–18:00, which matches the real
-> station's actual schedule). Do not add the station's real presenter names,
-> full schedule, or live stream URL here until they've been approached and
-> have agreed — see the project journey log.
+> 97.1 community station. It is **not** the station's official backend.
+> Kasie FM has been contacted and has agreed to this project using their
+> real schedule, presenter names, and branding — see the project journey
+> log for the authorization history.
 
 ## Endpoints
 
@@ -35,7 +33,7 @@ docker compose up --build
 instead — both were tested working during development.)
 
 Then open http://localhost:8080/api/schedule — you should see JSON with
-`#HomeDrive`, `#Throwback`, `#Highlights`, `#NewsHour`.
+the full weekday (Mon–Fri) show lineup.
 
 To stop: `docker compose down` (add `-v` to also wipe the database volume).
 
@@ -53,16 +51,13 @@ Postgres.
 
 ## Editing the schedule
 
-Seed data lives in `DataSeeder.java` (only seeds on first run — drop the DB
-volume with `docker compose down -v` to re-seed). Presenter fields are
-currently placeholder pending Kasie FM's permission (see status note above)
-— do not fill these in with the station's real presenter names without
-their agreement.
+Seed data lives in `DataSeeder.java` and re-syncs (clears + re-inserts) on
+every startup, so editing it and redeploying is enough to update
+production — no manual DB reset needed. Reflects the real Kasie FM
+weekday lineup per the station's agreement (see status note above).
 
 ## Next steps (per the roadmap)
 
-- Contact Kasie FM directly before using any more of their real branding,
-  schedule, or stream data.
 - Add a `dayOfWeek` / recurrence concept to `Show` — the real station's
   schedule varies by day, which the current single-repeating-schedule model
   doesn't support.

@@ -1,7 +1,9 @@
-name: Build debug APK
+name: Build and test API
 
 on:
   push:
+    branches: [ main ]
+  pull_request:
     branches: [ main ]
   workflow_dispatch: {}
 
@@ -17,15 +19,7 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+          cache: maven
 
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
-
-      - name: Build debug APK
-        run: ./gradlew assembleDebug
-
-      - name: Upload APK as build artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+      - name: Build and test with Maven
+        run: mvn -B -ntp verify
