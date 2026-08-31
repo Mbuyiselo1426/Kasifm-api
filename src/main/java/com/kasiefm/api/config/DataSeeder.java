@@ -25,7 +25,9 @@ public class DataSeeder implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        showRepository.deleteAll();
+        if (showRepository.count() > 0) {
+            return;
+        }
 
         showRepository.save(new Show(
                 "Whisper In The Dark",

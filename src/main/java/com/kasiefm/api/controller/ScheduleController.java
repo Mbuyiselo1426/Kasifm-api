@@ -2,9 +2,15 @@ package com.kasiefm.api.controller;
 
 import com.kasiefm.api.model.Show;
 import com.kasiefm.api.model.ShowDto;
+import com.kasiefm.api.model.UpdateShowRequest;
 import com.kasiefm.api.repository.ShowRepository;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalTime;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -35,5 +41,49 @@ public class ScheduleController {
         Show show = showRepository.findById(id)
                 .orElseThrow(() -> new ShowNotFoundException(id));
         return ShowDto.fromEntity(show);
+    }
+
+    // PUT /api/schedule/{id} - update an existing show in the schedule.
+    @PutMapping("/schedule/{id}")
+    public ShowDto updateShow(@PathVariable Long id, @Valid @RequestBody UpdateShowRequest request) {
+        Show show = showRepository.findById(id)
+                .orElseThrow(() -> new ShowNotFoundException(id));
+
+        LocalTime startTime = parseTime(request.getStartTime(), "startTime");
+        LocalTime endTime = parseTime(request.getEndTime(), "endTime");
+        if (!endTime.isAfter(startTime)) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "endTime must be later than startTime"
+            );
+        }
+
+        show.setName(request.getName().trim());
+        show.setPresenter(trimToNull(request.getPresenter()));
+        show.setStartTime(startTime);
+        show.setEndTime(endTime);
+        show.setDescription(trimToNull(request.getDescription()));
+
+        return ShowDto.fromEntity(showRepository.save(show));
+    }
+
+    private LocalTime parseTime(String value, String fieldName) {
+        try {
+            return LocalTime.parse(value);
+        } catch (DateTimeParseException exception) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    fieldName + " must use HH:mm format"
+            );
+        }
+    }
+
+    private String trimToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 }
