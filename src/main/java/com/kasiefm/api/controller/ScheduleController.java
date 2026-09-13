@@ -12,7 +12,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalTime;
 import java.time.format.DateTimeParseException;
 import java.util.List;
-import java.util.stream.Collectors;
+import com.kasiefm.api.service.ScheduleMapper;
 
 @RestController
 @RequestMapping("/api")
@@ -21,18 +21,18 @@ public class ScheduleController {
 
     private final ShowRepository showRepository;
 
-    public ScheduleController(ShowRepository showRepository) {
+    private final ScheduleMapper scheduleMapper;
+
+    public ScheduleController(ShowRepository showRepository, ScheduleMapper scheduleMapper) {
         this.showRepository = showRepository;
+        this.scheduleMapper = scheduleMapper;
     }
 
     // GET /api/schedule - the full day's lineup, in order.
     // This is what replaces the hardcoded showTitle/showTime strings in MainActivity.
     @GetMapping("/schedule")
     public List<ShowDto> getSchedule() {
-        return showRepository.findAllByOrderByStartTimeAsc()
-                .stream()
-                .map(ShowDto::fromEntity)
-                .collect(Collectors.toList());
+        return scheduleMapper.map(showRepository.findAllByOrderByStartTimeAsc());
     }
 
     // GET /api/schedule/{id} - a single show, useful later for a "show details" screen.
@@ -40,7 +40,7 @@ public class ScheduleController {
     public ShowDto getShow(@PathVariable Long id) {
         Show show = showRepository.findById(id)
                 .orElseThrow(() -> new ShowNotFoundException(id));
-        return ShowDto.fromEntity(show);
+        return currentDto(show);
     }
 
     // PUT /api/schedule/{id} - update an existing show in the schedule.
@@ -64,7 +64,14 @@ public class ScheduleController {
         show.setEndTime(endTime);
         show.setDescription(trimToNull(request.getDescription()));
 
-        return ShowDto.fromEntity(showRepository.save(show));
+        return currentDto(showRepository.save(show));
+    }
+
+    private ShowDto currentDto(Show show) {
+        return getSchedule().stream()
+                .filter(dto -> dto.getId().equals(show.getId()))
+                .findFirst()
+                .orElseGet(() -> ShowDto.fromEntity(show));
     }
 
     private LocalTime parseTime(String value, String fieldName) {

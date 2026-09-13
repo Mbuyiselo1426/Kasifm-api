@@ -3,6 +3,7 @@ package com.kasiefm.api.config;
 import com.kasiefm.api.model.Show;
 import com.kasiefm.api.repository.ShowRepository;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalTime;
@@ -15,6 +16,7 @@ import java.time.LocalTime;
  * proper admin endpoint or CSV import for managing the schedule.
  */
 @Component
+@ConditionalOnProperty(name = "app.seed.enabled", havingValue = "true", matchIfMissing = true)
 public class DataSeeder implements CommandLineRunner {
 
     private final ShowRepository showRepository;

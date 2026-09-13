@@ -1,6 +1,6 @@
 package com.kasiefm.api.model;
 
-import java.time.LocalTime;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.format.DateTimeFormatter;
 
 /**
@@ -17,9 +17,15 @@ public class ShowDto {
     private String startTime;
     private String endTime;
     private String description;
+    private boolean current;
 
     public static ShowDto fromEntity(Show show) {
+        return fromEntity(show, false);
+    }
+
+    public static ShowDto fromEntity(Show show, boolean current) {
         ShowDto dto = new ShowDto();
+        dto.current = current;
         dto.id = show.getId();
         dto.name = show.getName();
         dto.presenter = show.getPresenter();
@@ -27,6 +33,11 @@ public class ShowDto {
         dto.endTime = show.getEndTime().format(FORMAT);
         dto.description = show.getDescription();
         return dto;
+    }
+
+    @JsonProperty("isCurrent")
+    public boolean isCurrent() {
+        return current;
     }
 
     public Long getId() {
