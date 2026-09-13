@@ -1,10 +1,23 @@
 package com.kasiefm.api.model;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import java.time.DayOfWeek;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 public class UpdateShowRequest {
+
+    @NotNull
+    private DayOfWeek dayOfWeek;
+
+    public DayOfWeek getDayOfWeek() { return dayOfWeek; }
+
+    // Parse names explicitly so JSON numeric enum ordinals are not accepted.
+    public void setDayOfWeek(String dayOfWeek) {
+        this.dayOfWeek = dayOfWeek == null ? null : DayOfWeek.valueOf(dayOfWeek);
+    }
+
 
     @NotBlank
     @Size(max = 255)

@@ -11,6 +11,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.time.Clock;
+import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalTime;
 import java.time.ZoneOffset;
@@ -26,7 +27,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 class ScheduleMapperTest {
     private Show show(long id, String start, String end) {
-        Show show = new Show("Show " + id, "Presenter", LocalTime.parse(start), LocalTime.parse(end), "Description");
+        Show show = new Show("Show " + id, "Presenter", LocalTime.parse(start), LocalTime.parse(end), "Description", DayOfWeek.SUNDAY);
         show.setId(id);
         return show;
     }
@@ -92,7 +93,7 @@ class ScheduleMapperTest {
         ShowRepository repository = mock(ShowRepository.class);
         Show earlier = show(1,"06:00","09:00");
         Show current = show(2,"09:00","12:00");
-        when(repository.findAllByOrderByStartTimeAsc()).thenReturn(Arrays.asList(current, earlier));
+        when(repository.findByDayOfWeekOrderByStartTimeAscIdAsc(DayOfWeek.SUNDAY)).thenReturn(Arrays.asList(current, earlier));
         when(repository.findById(2L)).thenReturn(Optional.of(current));
         MockMvc mvc = MockMvcBuilders.standaloneSetup(new ScheduleController(repository, at("07:00:00"))).build();
         String json = mvc.perform(get("/api/schedule"))
@@ -106,5 +107,71 @@ class ScheduleMapperTest {
         assertFalse(item.has("current"));
         mvc.perform(get("/api/schedule/2")).andExpect(status().isOk())
                 .andExpect(jsonPath("$.isCurrent").value(true));
+    }
+
+    private Show on(DayOfWeek day, long id, String start, String end) {
+        Show show = show(id, start, end);
+        show.setDayOfWeek(day);
+        return show;
+    }
+
+    private ScheduleMapper date(String instant) {
+        return new ScheduleMapper(Clock.fixed(Instant.parse(instant), ZoneOffset.UTC));
+    }
+
+    @Test
+    void wrongDayAndUndatedRowsAreNeverCurrent() {
+        Show monday = on(DayOfWeek.MONDAY, 1, "09:00", "12:00");
+        Show legacy = on(null, 2, "09:00", "12:00");
+        assertNull(selected(at("07:30:00"), Arrays.asList(monday, legacy)));
+        assertEquals(1L, selected(date("2026-09-14T07:30:00Z"), List.of(monday)));
+    }
+
+    @Test
+    void fridayOvernightIsCurrentEarlySaturdayOnly() {
+        Show friday = on(DayOfWeek.FRIDAY, 1, "22:00", "02:00");
+        assertNull(selected(date("2026-09-11T19:59:59Z"), List.of(friday)));
+        assertEquals(1L, selected(date("2026-09-11T20:00:00Z"), List.of(friday)));
+        assertEquals(1L, selected(date("2026-09-11T23:00:00Z"), List.of(friday)));
+        assertNull(selected(date("2026-09-12T00:00:00Z"), List.of(friday)));
+        assertNull(selected(date("2026-09-12T23:00:00Z"), List.of(friday)));
+    }
+
+    @Test
+    void sundayToMondayWrapUsesJohannesburgDate() throws Exception {
+        ShowRepository repository = mock(ShowRepository.class);
+        Show sunday = on(DayOfWeek.SUNDAY, 1, "22:00", "02:00");
+        Show monday = on(DayOfWeek.MONDAY, 2, "06:00", "09:00");
+        when(repository.findByDayOfWeekOrderByStartTimeAscIdAsc(DayOfWeek.SUNDAY)).thenReturn(List.of(sunday));
+        when(repository.findByDayOfWeekOrderByStartTimeAscIdAsc(DayOfWeek.MONDAY)).thenReturn(List.of(monday));
+        ScheduleMapper mapper = date("2026-09-13T23:00:00Z"); // Monday 01:00 in Johannesburg
+        MockMvc mvc = MockMvcBuilders.standaloneSetup(new ScheduleController(repository, mapper)).build();
+        mvc.perform(get("/api/schedule")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].dayOfWeek").value("MONDAY"))
+                .andExpect(jsonPath("$[0].isCurrent").value(false))
+                .andExpect(jsonPath("$[1].dayOfWeek").value("SUNDAY"))
+                .andExpect(jsonPath("$[1].isCurrent").value(true));
+        // At the exclusive end, yesterday's row disappears from the day response.
+        ScheduleController later = new ScheduleController(repository, date("2026-09-14T00:00:00Z"));
+        assertEquals(List.of(2L), later.getSchedule().stream().map(ShowDto::getId).toList());
+    }
+
+    @Test
+    void mondayAndSundayDayResponsesAreFilteredAndSorted() throws Exception {
+        for (DayOfWeek day : List.of(DayOfWeek.MONDAY, DayOfWeek.SUNDAY)) {
+            ShowRepository repository = mock(ShowRepository.class);
+            when(repository.findByDayOfWeekOrderByStartTimeAscIdAsc(day)).thenReturn(List.of(
+                    on(day, 2, "12:00", "15:00"), on(day, 1, "06:00", "09:00")));
+            String instant = day == DayOfWeek.MONDAY ? "2026-09-14T04:00:00Z" : "2026-09-13T04:00:00Z";
+            MockMvc mvc = MockMvcBuilders.standaloneSetup(new ScheduleController(repository, date(instant))).build();
+            mvc.perform(get("/api/schedule")).andExpect(status().isOk())
+                    .andExpect(jsonPath("$.length()").value(2))
+                    .andExpect(jsonPath("$[0].startTime").value("06:00"))
+                    .andExpect(jsonPath("$[0].dayOfWeek").value(day.name()))
+                    .andExpect(jsonPath("$[0].isCurrent").value(true));
+            verify(repository).findByDayOfWeekOrderByStartTimeAscIdAsc(day);
+            verify(repository).findByDayOfWeekOrderByStartTimeAscIdAsc(day.minus(1));
+        }
     }
 }

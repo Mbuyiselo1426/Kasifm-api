@@ -2,6 +2,7 @@ package com.kasiefm.api.model;
 
 import jakarta.persistence.*;
 import java.time.LocalTime;
+import java.time.DayOfWeek;
 
 @Entity
 @Table(name = "shows")
@@ -16,6 +17,11 @@ public class Show {
 
     private String presenter;
 
+    // Nullable only during migration: existing rows have no known broadcast day.
+    @Enumerated(EnumType.STRING)
+    @Column(name = "day_of_week", length = 9)
+    private DayOfWeek dayOfWeek;
+
     @Column(name = "start_time", nullable = false)
     private LocalTime startTime;
 
@@ -28,13 +34,18 @@ public class Show {
     public Show() {
     }
 
-    public Show(String name, String presenter, LocalTime startTime, LocalTime endTime, String description) {
+    public Show(String name, String presenter, LocalTime startTime, LocalTime endTime, String description, DayOfWeek dayOfWeek) {
         this.name = name;
         this.presenter = presenter;
         this.startTime = startTime;
         this.endTime = endTime;
         this.description = description;
+        this.dayOfWeek = dayOfWeek;
     }
+
+    public DayOfWeek getDayOfWeek() { return dayOfWeek; }
+
+    public void setDayOfWeek(DayOfWeek dayOfWeek) { this.dayOfWeek = dayOfWeek; }
 
     public Long getId() {
         return id;

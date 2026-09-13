@@ -10,6 +10,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalTime;
+import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.time.format.DateTimeParseException;
 import java.util.List;
 import com.kasiefm.api.service.ScheduleMapper;
@@ -32,7 +34,13 @@ public class ScheduleController {
     // This is what replaces the hardcoded showTitle/showTime strings in MainActivity.
     @GetMapping("/schedule")
     public List<ShowDto> getSchedule() {
-        return scheduleMapper.map(showRepository.findAllByOrderByStartTimeAsc());
+        ZonedDateTime now = scheduleMapper.now();
+        List<Show> shows = new ArrayList<>(showRepository
+                .findByDayOfWeekOrderByStartTimeAscIdAsc(now.getDayOfWeek()));
+        // Keep an active previous-day overnight row visible to marker-based clients.
+        showRepository.findByDayOfWeekOrderByStartTimeAscIdAsc(now.minusDays(1).getDayOfWeek())
+                .stream().filter(show -> scheduleMapper.contains(show, now)).forEach(shows::add);
+        return scheduleMapper.map(shows, now);
     }
 
     // GET /api/schedule/{id} - a single show, useful later for a "show details" screen.
@@ -51,13 +59,14 @@ public class ScheduleController {
 
         LocalTime startTime = parseTime(request.getStartTime(), "startTime");
         LocalTime endTime = parseTime(request.getEndTime(), "endTime");
-        if (!endTime.isAfter(startTime)) {
+        if (endTime.equals(startTime)) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "endTime must be later than startTime"
+                    "endTime must differ from startTime"
             );
         }
 
+        show.setDayOfWeek(request.getDayOfWeek());
         show.setName(request.getName().trim());
         show.setPresenter(trimToNull(request.getPresenter()));
         show.setStartTime(startTime);

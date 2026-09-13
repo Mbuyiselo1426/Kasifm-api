@@ -1,6 +1,7 @@
 package com.kasiefm.api.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.time.DayOfWeek;
 import java.time.format.DateTimeFormatter;
 
 /**
@@ -18,6 +19,7 @@ public class ShowDto {
     private String endTime;
     private String description;
     private boolean current;
+    private DayOfWeek dayOfWeek;
 
     public static ShowDto fromEntity(Show show) {
         return fromEntity(show, false);
@@ -27,6 +29,7 @@ public class ShowDto {
         ShowDto dto = new ShowDto();
         dto.current = current;
         dto.id = show.getId();
+        dto.dayOfWeek = show.getDayOfWeek();
         dto.name = show.getName();
         dto.presenter = show.getPresenter();
         dto.startTime = show.getStartTime().format(FORMAT);
@@ -39,6 +42,8 @@ public class ShowDto {
     public boolean isCurrent() {
         return current;
     }
+
+    public DayOfWeek getDayOfWeek() { return dayOfWeek; }
 
     public Long getId() {
         return id;

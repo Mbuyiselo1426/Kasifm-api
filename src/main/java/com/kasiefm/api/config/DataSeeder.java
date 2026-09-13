@@ -5,20 +5,22 @@ import com.kasiefm.api.repository.ShowRepository;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.DayOfWeek;
 import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.EnumSet;
+import java.util.List;
 
 /**
- * Seeds the database with the real Kasie FM weekday (Mon-Fri) lineup.
- * Re-syncs on every startup (clears the table first) rather than a one-time
- * seed, so editing the list below is enough to update production on the
- * next deploy - no manual DB steps. Delete this class once you have a
- * proper admin endpoint or CSV import for managing the schedule.
+ * Weekly lineup manually verified by the project owner against
+ * https://kasiefm971.co.za/shows.html, Monday through Sunday (2026-09-13).
+ * Opt-in, empty databases only. Unknown presenters/descriptions remain null.
  */
 @Component
-@ConditionalOnProperty(name = "app.seed.enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(name = "app.seed.enabled", havingValue = "true", matchIfMissing = false)
 public class DataSeeder implements CommandLineRunner {
-
     private final ShowRepository showRepository;
 
     public DataSeeder(ShowRepository showRepository) {
@@ -26,65 +28,57 @@ public class DataSeeder implements CommandLineRunner {
     }
 
     @Override
+    @Transactional
     public void run(String... args) {
         if (showRepository.count() > 0) {
             return;
         }
-
-        showRepository.save(new Show(
-                "Whisper In The Dark",
-                "TBC",
-                LocalTime.of(0, 0),
-                LocalTime.of(3, 0),
-                "Music, topics and dedications through the night."
-        ));
-
-        showRepository.save(new Show(
-                "Vuka Kasie-Rise and Shine",
-                "TBC",
-                LocalTime.of(3, 0),
-                LocalTime.of(6, 0),
-                "The early wake-up show, Monday to Friday."
-        ));
-
-        showRepository.save(new Show(
+        List<Show> shows = new ArrayList<>(56);
+        for (DayOfWeek day : EnumSet.range(DayOfWeek.MONDAY, DayOfWeek.THURSDAY)) {
+            addDay(shows, day,
+                "Whisper in the Dark",
+                "Vuka Kasie",
                 "Asiye 6-9 Breakfast Show",
-                "TBC",
-                LocalTime.of(6, 0),
-                LocalTime.of(9, 0),
-                "Soweto's breakfast show - news, music and conversation."
-        ));
-
-        showRepository.save(new Show(
                 "Morning Essentials",
-                "TBC",
-                LocalTime.of(9, 0),
-                LocalTime.of(12, 0),
-                "Gender, women, health, home, children, religion and motivation."
-        ));
-
-        showRepository.save(new Show(
                 "Semphete",
-                "Mokaptene",
-                LocalTime.of(12, 0),
-                LocalTime.of(15, 0),
-                "Community development, arts, disability, small business and NGOs."
-        ));
-
-        showRepository.save(new Show(
-                "#HomeDrive",
-                "Napo",
-                LocalTime.of(15, 0),
-                LocalTime.of(18, 0),
-                "The drive-home soundtrack and youth-focused topics."
-        ));
-
-        showRepository.save(new Show(
+                "Home Drive with Napo",
                 "Kasie Talk",
-                "MaZulu",
-                LocalTime.of(18, 0),
-                LocalTime.of(21, 0),
-                "News, current affairs and community issues."
-        ));
+                "Late Night Affair");
+        }
+        addDay(shows, DayOfWeek.FRIDAY,
+                "Whisper in the Dark",
+                "Vuka Kasie",
+                "Asiye 6-9 Breakfast Show",
+                "Morning Essentials",
+                "Semphete",
+                "Home Drive with Napo",
+                "The Weekend Takeover",
+                "Club 971");
+        addDay(shows, DayOfWeek.SATURDAY,
+                "Midnight Express",
+                "Kusempondo Zankomo",
+                "Scoreline Show",
+                "Ezakwantu",
+                "Urban Chart Show",
+                "The Lifestyle Corner",
+                "The Weekend Takeover",
+                "Club 971");
+        addDay(shows, DayOfWeek.SUNDAY,
+                "Midnight Express",
+                "Kusempondo Zankomo",
+                "Asimdumise",
+                "Centre Stage",
+                "Seven Colours",
+                "Soul Food",
+                "The Revival",
+                "Late Night Affair");
+        showRepository.saveAll(shows);
+    }
+
+    private void addDay(List<Show> shows, DayOfWeek day, String... names) {
+        for (int slot = 0; slot < names.length; slot++) {
+            shows.add(new Show(names[slot], null, LocalTime.of(slot * 3, 0),
+                    LocalTime.of(((slot + 1) * 3) % 24, 0), null, day));
+        }
     }
 }

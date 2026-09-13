@@ -6,12 +6,13 @@ import org.springframework.stereotype.Component;
 
 import java.time.Clock;
 import java.time.LocalTime;
+import java.time.ZonedDateTime;
 import java.time.ZoneId;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
-/** Daily repeating schedule, evaluated once per response in station time. */
+/** Weekly schedule; a show belongs to the Johannesburg day on which it starts. */
 @Component
 public class ScheduleMapper {
     private static final ZoneId STATION_ZONE = ZoneId.of("Africa/Johannesburg");
@@ -26,7 +27,15 @@ public class ScheduleMapper {
     }
 
     public List<ShowDto> map(List<Show> shows) {
-        LocalTime now = LocalTime.ofInstant(clock.instant(), STATION_ZONE);
+        return map(shows, now());
+    }
+
+    public ZonedDateTime now() {
+        return clock.instant().atZone(STATION_ZONE);
+    }
+
+    public List<ShowDto> map(List<Show> shows, ZonedDateTime instant) {
+        ZonedDateTime now = instant.withZoneSameInstant(STATION_ZONE);
         Show current = shows.stream()
                 .filter(show -> contains(show, now))
                 .min(Comparator.comparing(Show::getId))
@@ -37,15 +46,19 @@ public class ScheduleMapper {
                 .collect(Collectors.toList());
     }
 
-    private boolean contains(Show show, LocalTime now) {
+    public boolean contains(Show show, ZonedDateTime instant) {
+        ZonedDateTime stationNow = instant.withZoneSameInstant(STATION_ZONE);
+        LocalTime now = stationNow.toLocalTime();
         LocalTime start = show.getStartTime();
         LocalTime end = show.getEndTime();
-        if (start.equals(end)) {
-            return false; // zero-duration slot
+        if (show.getDayOfWeek() == null || start.equals(end)) {
+            return false;
         }
+        boolean startsToday = show.getDayOfWeek() == stationNow.getDayOfWeek();
         if (start.isBefore(end)) {
-            return !now.isBefore(start) && now.isBefore(end);
+            return startsToday && !now.isBefore(start) && now.isBefore(end);
         }
-        return !now.isBefore(start) || now.isBefore(end); // crosses midnight
+        boolean startedYesterday = show.getDayOfWeek() == stationNow.minusDays(1).getDayOfWeek();
+        return (startsToday && !now.isBefore(start)) || (startedYesterday && now.isBefore(end));
     }
 }
