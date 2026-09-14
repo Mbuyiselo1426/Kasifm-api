@@ -65,6 +65,20 @@ class ShowSessionServiceTest {
         assertEquals(Instant.parse("2026-09-14T01:00:00Z"), session.getEndsAt());
     }
 
+    @Test
+    void currentSessionLookupDoesNotCreateAHistoryReadSession() {
+        ShowRepository shows = mock(ShowRepository.class);
+        ShowSessionRepository sessions = mock(ShowSessionRepository.class);
+        Show current = show(3L, DayOfWeek.SUNDAY, "21:00", "00:00");
+        when(shows.findByDayOfWeekOrderByStartTimeAscIdAsc(DayOfWeek.SUNDAY)).thenReturn(List.of(current));
+        when(shows.findByDayOfWeekOrderByStartTimeAscIdAsc(DayOfWeek.SATURDAY)).thenReturn(List.of());
+        when(sessions.findByShowIdAndSessionDate(anyLong(), any())).thenReturn(java.util.Optional.empty());
+
+        assertTrue(new ShowSessionService(shows, sessions, mapperAt("2026-09-13T21:45:00Z"))
+                .findCurrentSession().isEmpty());
+        verify(sessions, never()).save(any());
+    }
+
     private ScheduleMapper mapperAt(String instant) {
         return new ScheduleMapper(Clock.fixed(Instant.parse(instant), ZoneOffset.UTC));
     }

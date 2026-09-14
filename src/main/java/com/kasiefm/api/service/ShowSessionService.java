@@ -30,6 +30,20 @@ public class ShowSessionService {
 
     @Transactional
     public Optional<ShowSession> resolveCurrentSession() {
+        return currentAiring().map(airing -> showSessionRepository
+                .findByShowIdAndSessionDate(airing.show().getId(), airing.sessionDate())
+                .orElseGet(() -> showSessionRepository.save(new ShowSession(
+                        airing.show(), airing.sessionDate(), airing.startsAt(), airing.endsAt()))));
+    }
+
+    /** Finds an already-created current session without creating one for a history read. */
+    @Transactional(readOnly = true)
+    public Optional<ShowSession> findCurrentSession() {
+        return currentAiring().flatMap(airing -> showSessionRepository
+                .findByShowIdAndSessionDate(airing.show().getId(), airing.sessionDate()));
+    }
+
+    private Optional<CurrentAiring> currentAiring() {
         ZonedDateTime now = scheduleMapper.now();
         List<Show> candidates = new ArrayList<>(showRepository
                 .findByDayOfWeekOrderByStartTimeAscIdAsc(now.getDayOfWeek()));
@@ -46,12 +60,12 @@ public class ShowSessionService {
 
         LocalDate sessionDate = current.getDayOfWeek() == now.getDayOfWeek()
                 ? now.toLocalDate() : now.toLocalDate().minusDays(1);
-        return Optional.of(showSessionRepository.findByShowIdAndSessionDate(current.getId(), sessionDate)
-                .orElseGet(() -> showSessionRepository.save(new ShowSession(
-                        current,
-                        sessionDate,
-                        sessionDate.atTime(current.getStartTime()).atZone(now.getZone()).toInstant(),
-                        sessionDate.plusDays(current.getEndTime().isAfter(current.getStartTime()) ? 0 : 1)
-                                .atTime(current.getEndTime()).atZone(now.getZone()).toInstant()))));
+        return Optional.of(new CurrentAiring(current, sessionDate,
+                sessionDate.atTime(current.getStartTime()).atZone(now.getZone()).toInstant(),
+                sessionDate.plusDays(current.getEndTime().isAfter(current.getStartTime()) ? 0 : 1)
+                        .atTime(current.getEndTime()).atZone(now.getZone()).toInstant()));
     }
+
+    private record CurrentAiring(Show show, LocalDate sessionDate,
+                                 java.time.Instant startsAt, java.time.Instant endsAt) { }
 }
