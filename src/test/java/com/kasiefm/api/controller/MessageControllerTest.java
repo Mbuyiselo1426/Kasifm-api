@@ -142,11 +142,12 @@ class MessageControllerTest {
 
     private Show saveShowCoveringNow() {
         ZonedDateTime now = scheduleMapper.now();
-        LocalTime start = now.toLocalTime().minusMinutes(1);
-        LocalTime end = now.toLocalTime().plusMinutes(1);
+        LocalTime currentTime = now.toLocalTime().withNano(0);
+        LocalTime start = currentTime.minusMinutes(1);
+        LocalTime end = currentTime.plusMinutes(1);
         // If the start crossed midnight, this is an overnight row from yesterday.
         return showRepository.save(new Show("Current Test Show", null, start, end, null,
-                start.isAfter(now.toLocalTime()) ? now.minusDays(1).getDayOfWeek() : now.getDayOfWeek()));
+                start.isAfter(currentTime) ? now.minusDays(1).getDayOfWeek() : now.getDayOfWeek()));
     }
 
     private ResultActions updateStatus(Long id, String status, String token) throws Exception {

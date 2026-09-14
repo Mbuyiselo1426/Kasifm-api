@@ -22,6 +22,8 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 import static org.hamcrest.Matchers.is;
@@ -108,6 +110,24 @@ class ShowSessionControllerTest {
                 .andExpect(status().isNotFound());
     }
 
+    @Test void recentSessionsAreLimitedToTwentyPersistedSessions() throws Exception {
+        Show show = showRepository.save(show("History Show", LocalTime.of(6, 0), LocalTime.of(9, 0)));
+        List<ShowSession> sessions = new ArrayList<>();
+        Instant firstStart = Instant.parse("2026-08-01T04:00:00Z");
+        LocalDate firstDate = LocalDate.of(2026, 8, 1);
+        for (int index = 0; index < 21; index++) {
+            Instant startsAt = firstStart.plusSeconds(index * 86_400L);
+            sessions.add(showSessionRepository.save(new ShowSession(show, firstDate.plusDays(index),
+                    startsAt, startsAt.plusSeconds(10_800))));
+        }
+
+        mockMvc.perform(get("/api/show-sessions/recent").header("Authorization", "Bearer " + presenterToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()", is(20)))
+                .andExpect(jsonPath("$[0].sessionId", is(sessions.get(20).getId().intValue())))
+                .andExpect(jsonPath("$[19].sessionId", is(sessions.get(1).getId().intValue())));
+    }
+
     private Show show(String name, LocalTime start, LocalTime end) {
         return new Show(name, null, start, end, null, scheduleMapper.now().getDayOfWeek());
     }
@@ -124,10 +144,11 @@ class ShowSessionControllerTest {
 
     private void saveShowCoveringNow() {
         ZonedDateTime now = scheduleMapper.now();
-        LocalTime start = now.toLocalTime().minusMinutes(1);
-        LocalTime end = now.toLocalTime().plusMinutes(1);
+        LocalTime currentTime = now.toLocalTime().withNano(0);
+        LocalTime start = currentTime.minusMinutes(1);
+        LocalTime end = currentTime.plusMinutes(1);
         showRepository.save(new Show("Current Test Show", null, start, end, null,
-                start.isAfter(now.toLocalTime()) ? now.minusDays(1).getDayOfWeek() : now.getDayOfWeek()));
+                start.isAfter(currentTime) ? now.minusDays(1).getDayOfWeek() : now.getDayOfWeek()));
     }
 
     private String presenterToken() {
