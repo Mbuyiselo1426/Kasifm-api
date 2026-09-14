@@ -85,6 +85,25 @@ class MessageControllerTest {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status", is("READ")));
     }
 
+    @Test void presenterCanMoveMessageThroughOnAirQueueWorkflow() throws Exception {
+        Message message = messageRepository.save(new Message("Listener", MessageCategory.OTHER, "Please read this", null, null));
+        String token = presenterToken();
+
+        updateStatus(message.getId(), "QUEUED", token).andExpect(jsonPath("$.status", is("QUEUED")));
+        assertEquals(MessageStatus.QUEUED, messageRepository.findById(message.getId()).orElseThrow().getStatus());
+
+        updateStatus(message.getId(), "READ", token).andExpect(jsonPath("$.status", is("READ")));
+        updateStatus(message.getId(), "ARCHIVED", token).andExpect(jsonPath("$.status", is("ARCHIVED")));
+        updateStatus(message.getId(), "NEW", token).andExpect(jsonPath("$.status", is("NEW")));
+    }
+
+    private ResultActions updateStatus(Long id, String status, String token) throws Exception {
+        return mockMvc.perform(patch("/api/messages/{id}/status", id)
+                .header("Authorization", "Bearer " + token).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"status\":\"" + status + "\"}"))
+                .andExpect(status().isOk());
+    }
+
     private String presenterToken() {
         PresenterUser user = userRepository.save(new PresenterUser("presenter", passwordEncoder.encode("correct-password"),
                 "Presenter", UserRole.PRESENTER));
