@@ -2,6 +2,7 @@ package com.kasiefm.api.controller;
 
 import com.kasiefm.api.model.*;
 import com.kasiefm.api.repository.MessageRepository;
+import com.kasiefm.api.service.ShowSessionService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
@@ -12,9 +13,11 @@ import java.util.List;
 @RequestMapping("/api/messages")
 public class MessageController {
     private final MessageRepository messageRepository;
+    private final ShowSessionService showSessionService;
 
-    public MessageController(MessageRepository messageRepository) {
+    public MessageController(MessageRepository messageRepository, ShowSessionService showSessionService) {
         this.messageRepository = messageRepository;
+        this.showSessionService = showSessionService;
     }
 
     @PostMapping
@@ -26,6 +29,8 @@ public class MessageController {
         }
         Message message = new Message(trim(request.getSenderName()), request.getCategory(),
                 trim(request.getMessage()), trimToNull(request.getSongTitle()), trimToNull(request.getArtist()));
+        // Keep submissions compatible if a schedule has not been populated yet.
+        showSessionService.resolveCurrentSession().ifPresent(message::setShowSession);
         return MessageDto.fromEntity(messageRepository.save(message));
     }
 
@@ -34,6 +39,14 @@ public class MessageController {
     public List<MessageDto> getMessages() {
         return messageRepository.findAllByOrderByCreatedAtDescIdDesc().stream()
                 .map(MessageDto::fromEntity).toList();
+    }
+
+    @GetMapping("/current-show")
+    public List<MessageDto> getCurrentShowMessages() {
+        return showSessionService.resolveCurrentSession()
+                .map(session -> messageRepository.findByShowSessionIdOrderByCreatedAtDescIdDesc(session.getId()))
+                .orElseGet(List::of)
+                .stream().map(MessageDto::fromEntity).toList();
     }
 
     /** Presenter-facing endpoint: protect with authentication before production use. */

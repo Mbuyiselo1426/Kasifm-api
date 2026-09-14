@@ -6,4 +6,5 @@ import java.util.List;
 
 public interface MessageRepository extends JpaRepository<Message, Long> {
     List<Message> findAllByOrderByCreatedAtDescIdDesc();
+    List<Message> findByShowSessionIdOrderByCreatedAtDescIdDesc(Long showSessionId);
 }

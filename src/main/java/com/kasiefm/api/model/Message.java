@@ -29,6 +29,11 @@ public class Message {
     @Column(nullable = false, length = 16)
     private MessageStatus status;
 
+    // Nullable while existing production messages are migrated without a session.
+    @ManyToOne
+    @JoinColumn(name = "show_session_id")
+    private ShowSession showSession;
+
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -55,5 +60,7 @@ public class Message {
     public String getArtist() { return artist; }
     public MessageStatus getStatus() { return status; }
     public Instant getCreatedAt() { return createdAt; }
+    public ShowSession getShowSession() { return showSession; }
     public void setStatus(MessageStatus status) { this.status = status; }
+    public void setShowSession(ShowSession showSession) { this.showSession = showSession; }
 }
