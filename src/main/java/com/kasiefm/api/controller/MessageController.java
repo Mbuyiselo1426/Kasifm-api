@@ -10,7 +10,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/messages")
-@CrossOrigin(origins = "*") // Presenter endpoints need authentication before production use.
 public class MessageController {
     private final MessageRepository messageRepository;
 

@@ -18,7 +18,6 @@ import com.kasiefm.api.service.ScheduleMapper;
 
 @RestController
 @RequestMapping("/api")
-@CrossOrigin(origins = "*") // tighten this once you have a real domain/app in production
 public class ScheduleController {
 
     private final ShowRepository showRepository;

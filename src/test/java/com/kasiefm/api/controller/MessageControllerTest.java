@@ -2,6 +2,8 @@ package com.kasiefm.api.controller;
 
 import com.kasiefm.api.model.*;
 import com.kasiefm.api.repository.MessageRepository;
+import com.kasiefm.api.repository.PresenterUserRepository;
+import com.kasiefm.api.service.JwtService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,6 +12,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import java.time.Instant;
 import static org.hamcrest.Matchers.is;
 import static org.junit.jupiter.api.Assertions.*;
@@ -22,8 +25,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class MessageControllerTest {
     @Autowired private MockMvc mockMvc;
     @Autowired private MessageRepository messageRepository;
+    @Autowired private PresenterUserRepository userRepository;
+    @Autowired private PasswordEncoder passwordEncoder;
+    @Autowired private JwtService jwtService;
 
-    @BeforeEach void setUp() { messageRepository.deleteAll(); }
+    @BeforeEach void setUp() { messageRepository.deleteAll(); userRepository.deleteAll(); }
 
     @Test void createPersistsNewMessageWithServerFieldsAndSongDetails() throws Exception {
         Instant before = Instant.now();
@@ -59,9 +65,29 @@ class MessageControllerTest {
         Message older = messageRepository.save(new Message("Older", MessageCategory.OTHER, "First", null, null));
         Thread.sleep(2L);
         Message newer = messageRepository.save(new Message("Newer", MessageCategory.PRAYER_REQUEST, "Second", null, null));
-        mockMvc.perform(get("/api/messages"))
+        mockMvc.perform(get("/api/messages").header("Authorization", "Bearer " + presenterToken()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id", is(newer.getId().intValue())))
                 .andExpect(jsonPath("$[1].id", is(older.getId().intValue())));
+    }
+
+    @Test void presenterEndpointsRequireValidTokenButListenerSubmissionRemainsPublic() throws Exception {
+        mockMvc.perform(post("/api/messages").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"senderName\":\"Listener\",\"category\":\"OTHER\",\"message\":\"Hello\"}"))
+                .andExpect(status().isCreated());
+        mockMvc.perform(get("/api/messages")).andExpect(status().isUnauthorized());
+        mockMvc.perform(patch("/api/messages/{id}/status", messageRepository.findAll().get(0).getId())
+                .contentType(MediaType.APPLICATION_JSON).content("{\"status\":\"READ\"}"))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(patch("/api/messages/{id}/status", messageRepository.findAll().get(0).getId())
+                .header("Authorization", "Bearer " + presenterToken()).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"status\":\"READ\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status", is("READ")));
+    }
+
+    private String presenterToken() {
+        PresenterUser user = userRepository.save(new PresenterUser("presenter", passwordEncoder.encode("correct-password"),
+                "Presenter", UserRole.PRESENTER));
+        return jwtService.createToken(user);
     }
 }

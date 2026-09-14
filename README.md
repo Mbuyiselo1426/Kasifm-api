@@ -13,6 +13,43 @@ This repository is private and intended for internal project use.
 | GET    | `/api/schedule/{id}`  | A single show                             |
 | PUT    | `/api/schedule/{id}`  | Update an existing show                   |
 | GET    | `/api/stream-url`     | `{ streamUrl, streamUrlLite }`            |
+| POST   | `/api/messages`       | Public listener message submission         |
+| POST   | `/api/auth/login`     | Presenter JWT login                        |
+| GET    | `/api/messages`       | Presenter/Admin JWT required                |
+| PATCH  | `/api/messages/{id}/status` | Presenter/Admin JWT required          |
+
+## Presenter authentication
+
+Presenter login uses BCrypt password hashes and signed JWT bearer tokens. Set
+these environment variables in Render or another deployment secret manager;
+do not commit credentials or a JWT secret:
+
+```text
+JWT_SECRET=<random secret of at least 32 bytes>
+JWT_EXPIRATION_SECONDS=3600
+DASHBOARD_ORIGIN=https://your-dashboard.example
+PRESENTER_BOOTSTRAP_USERNAME=presenter
+PRESENTER_BOOTSTRAP_PASSWORD=<first-presenter-password>
+PRESENTER_BOOTSTRAP_DISPLAY_NAME=Presenter Name
+PRESENTER_BOOTSTRAP_ROLE=PRESENTER
+```
+
+On startup, if the bootstrap username and password are both supplied and that
+username does not already exist, the API creates one enabled presenter account
+with a BCrypt hash. The plaintext password is neither logged nor stored. Once
+the account exists, remove `PRESENTER_BOOTSTRAP_PASSWORD` from the deployment
+environment; it is not used to overwrite an existing account. `ADMIN` is also
+an accepted bootstrap role.
+
+`POST /api/auth/login` accepts `username` and `password`, returning `token`,
+`displayName`, and `role`. Presenter dashboard requests must send
+`Authorization: Bearer <token>` for `GET /api/messages` and
+`PATCH /api/messages/{id}/status`. The listener-facing message POST, schedule
+GET, and stream GET endpoints remain public.
+
+CORS allows only `DASHBOARD_ORIGIN` (default: `http://localhost:8080`) for
+browser requests, including the Authorization header. Native Android requests
+are not browser-CORS requests and continue to use public listener submission.
 
 ## Run it — Option A: Docker (recommended)
 
