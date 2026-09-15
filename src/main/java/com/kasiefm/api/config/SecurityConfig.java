@@ -40,7 +40,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/messages").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/schedule/**", "/api/stream-url").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/schedule/**", "/api/stream-url", "/api/podcasts").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/show-sessions/**").hasAnyRole("PRESENTER", "ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/messages/current-show").hasAnyRole("PRESENTER", "ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/messages").hasAnyRole("PRESENTER", "ADMIN")

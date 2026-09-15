@@ -13,6 +13,7 @@ This repository is private and intended for internal project use.
 | GET    | `/api/schedule/{id}`  | A single show                             |
 | PUT    | `/api/schedule/{id}`  | Update an existing show                   |
 | GET    | `/api/stream-url`     | `{ streamUrl, streamUrlLite }`            |
+| GET    | `/api/podcasts`       | Published podcast episodes; public         |
 | POST   | `/api/messages`       | Public listener message submission         |
 | POST   | `/api/auth/login`     | Presenter JWT login                        |
 | GET    | `/api/messages`       | Presenter/Admin JWT required                |
@@ -84,6 +85,19 @@ of https://kasiefm971.co.za/shows.html on 2026-09-13. Presenters and description
 remain null because they have not been verified. After that, you can update a show directly with
 `PUT /api/schedule/{id}` and the change stays in the database across
 restarts.
+
+## Podcasts
+
+`GET /api/podcasts` is public and returns only published episodes, ordered by
+newest creation time first. Each item contains its ID, title, show name,
+audio URL, publication status, creation time, and any available description
+or publication time. Optional values are omitted from the JSON response when
+they have not been provided.
+
+The verified CLINIX Interview episode is supplied by an opt-in, idempotent
+seed runner. Set `app.seed.enabled=true` only when you want that initial data
+inserted; a matching audio URL is never inserted twice. Seeding is disabled by
+default and does not replace or alter existing podcast records.
 
 ## Weekly schedule contract
 
